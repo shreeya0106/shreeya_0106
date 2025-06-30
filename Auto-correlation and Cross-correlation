@@ -1,0 +1,36 @@
+% Define time vector and base signal
+t = 0:0.01:1;                           % Time vector
+signal1 = sin(2*pi*5*t);                % Primary periodic signal
+signal2 = 0.5*sin(2*pi*15*t);           % Additional higher frequency component
+signal = signal1 + signal2;             % Combined signal
+
+% Generate weighted random noise
+noise = 0.8 * randn(size(t));           % Scaled Gaussian noise
+noisy_signal = signal + noise;         % Add noise to signal
+
+% Normalize signals to zero mean
+noisy_signal = noisy_signal - mean(noisy_signal);
+signal = signal - mean(signal);
+
+% Compute Auto-correlation
+[auto_corr, lags_auto] = xcorr(noisy_signal, 'normalized');
+
+% Compute Cross-correlation
+[cross_corr, lags_cross] = xcorr(noisy_signal, signal, 'normalized');
+
+% Plot results
+figure;
+
+subplot(2, 1, 1);
+plot(lags_auto, auto_corr, 'b', 'LineWidth', 1.2);
+title('Normalized Auto-correlation of Noisy Signal');
+xlabel('Lag');
+ylabel('Amplitude');
+grid on;
+
+subplot(2, 1, 2);
+plot(lags_cross, cross_corr, 'r', 'LineWidth', 1.2);
+title('Normalized Cross-correlation: Noisy vs Clean Signal');
+xlabel('Lag');
+ylabel('Amplitude');
+grid on;

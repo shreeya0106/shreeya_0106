@@ -1,0 +1,138 @@
+module Elevator (
+    input clk, reset, 
+    input [3:0] request_buttons,
+    input emergency_button,
+    output reg [6:0] seven_seg,
+    output reg [6:0] direction_seg
+);
+    parameter G = 2'b00, F = 2'b01, S = 2'b10, T = 2'b11;
+
+    reg [1:0] current_state, next_state;
+    reg [3:0] floor_requests;
+    reg direction;
+
+    always @(posedge clk or posedge reset or posedge emergency_button) begin
+        if (reset || emergency_button) begin
+            current_state <= G;
+            floor_requests <= 4'b0000;
+            direction <= 1'b1;
+        end else begin
+            current_state <= next_state;
+        end
+    end
+
+    always @(posedge clk or posedge reset or posedge emergency_button) begin
+        if (reset || emergency_button) begin
+            floor_requests <= 4'b0000;
+        end else begin
+            floor_requests <= floor_requests | request_buttons;
+            case (current_state)
+                G: floor_requests[0] <= 1'b0;
+                F: floor_requests[1] <= 1'b0;
+                S: floor_requests[2] <= 1'b0;
+                T: floor_requests[3] <= 1'b0;
+            endcase
+        end
+    end
+
+    always @(*) begin
+        next_state = current_state;
+        if (direction) begin
+            case (current_state)
+                G: if (floor_requests[1]) next_state = F;
+                   else if (floor_requests[2]) next_state = S;
+                   else if (floor_requests[3]) next_state = T;
+                F: if (floor_requests[2]) next_state = S;
+                   else if (floor_requests[3]) next_state = T;
+                   else if (floor_requests[0]) begin next_state = G; direction = 1'b0; end
+                S: if (floor_requests[3]) next_state = T;
+                   else if (floor_requests[1]) begin next_state = F; direction = 1'b0; end
+                   else if (floor_requests[0]) begin next_state = G; direction = 1'b0; end
+                T: if (floor_requests[2]) begin next_state = S; direction = 1'b0; end
+                   else if (floor_requests[1]) begin next_state = F; direction = 1'b0; end
+                   else if (floor_requests[0]) begin next_state = G; direction = 1'b0; end
+            endcase
+        end else begin
+            case (current_state)
+                T: if (floor_requests[2]) next_state = S;
+                   else if (floor_requests[1]) next_state = F;
+                   else if (floor_requests[0]) next_state = G;
+                S: if (floor_requests[1]) next_state = F;
+                   else if (floor_requests[0]) next_state = G;
+                   else if (floor_requests[3]) begin next_state = T; direction = 1'b1; end
+                F: if (floor_requests[0]) next_state = G;
+                   else if (floor_requests[2]) begin next_state = S; direction = 1'b1; end
+                   else if (floor_requests[3]) begin next_state = T; direction = 1'b1; end
+                G: if (floor_requests[1]) begin next_state = F; direction = 1'b1; end
+                   else if (floor_requests[2]) begin next_state = S; direction = 1'b1; end
+                   else if (floor_requests[3]) begin next_state = T; direction = 1'b1; end
+            endcase
+        end
+    end
+
+    always @(*) begin
+        case (current_state)
+            G: seven_seg = 7'b1000000;
+            F: seven_seg = 7'b1111001;
+            S: seven_seg = 7'b0100100;
+            T: seven_seg = 7'b0110000;
+            default: seven_seg = 7'b1111111;
+        endcase
+    end
+
+    always @(*) begin
+        if (floor_requests == 4'b0000) begin
+            direction_seg = 7'b1111111;
+        end else begin
+            case (direction)
+                1'b1: direction_seg = 7'b1100011;
+                1'b0: direction_seg = 7'b0100001;
+            endcase
+        end
+    end
+endmodule
+
+module Elevator_tb;
+    reg clk;
+    reg reset;
+    reg [3:0] request_buttons;
+    reg emergency_button;
+    wire [6:0] seven_seg;
+    wire [6:0] direction_seg;
+
+    Elevator inst1 (
+        clk,
+        reset,
+        request_buttons,
+        emergency_button,
+        seven_seg,
+        direction_seg
+    );
+
+    initial begin
+        clk = 0;
+        forever #5 clk = ~clk;
+    end
+
+    initial begin
+        reset = 1;
+        request_buttons = 4'b0000;
+        emergency_button = 0;
+        #10 reset = 0;
+
+        request_buttons = 4'b0010;
+        #20 request_buttons = 4'b0000;
+
+        request_buttons = 4'b1000;
+        #30 request_buttons = 4'b0000;
+
+        emergency_button = 1;
+        #20 emergency_button = 0;
+
+        request_buttons = 4'b0101;
+        #40 request_buttons = 4'b0000;
+
+        #20;
+        $finish;
+    end
+endmodule
